@@ -19,10 +19,10 @@ runs:
       run: |
         # Fetch centralized CSK_PROJECTS if not provided
         if [ -z "${{ inputs.projects }}" ]; then
-          echo "🧬 No projects passed. Fetching from ianhubnet/github-actions..."
-          CSK_PROJECTS=$(curl -s -H "Authorization: Bearer ${{ inputs.token }}" \
-            https://api.github.com/repos/ianhubnet/github-actions/actions/variables/CSK_PROJECTS \
-            | jq -r '.value')
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ inputs.token }}" \
+            https://api.github.com/repos/ianhubnet/github-actions/actions/variables/CSK_PROJECTS)
+
+          CSK_PROJECTS=$(echo "$RESPONSE" | jq -r '.value')
         else
           CSK_PROJECTS="${{ inputs.projects }}"
         fi
