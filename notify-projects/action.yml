@@ -29,10 +29,16 @@ runs:
 
         IFS='|' read -ra REPOS <<< "$CSK_PROJECTS"
         for REPO in "${REPOS[@]}"; do
-          echo "🚀 Dispatching '${{ inputs.event }}' to $REPO ..."
+          if [[ "$REPO" == */* ]]; then
+            TARGET_REPO="$REPO"
+          else
+            TARGET_REPO="ianhubnet/$REPO"
+          fi
+
+          echo "🚀 Dispatching '${{ inputs.event }}' to $TARGET_REPO..."
           curl -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ inputs.token }}" \
-            https://api.github.com/repos/$REPO/dispatches \
+            "https://api.github.com/repos/$TARGET_REPO/dispatches" \
             -d "{\"event_type\":\"${{ inputs.event }}\"}"
         done
