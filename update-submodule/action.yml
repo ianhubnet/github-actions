@@ -3,11 +3,11 @@ description: Pulls the latest changes from a submodule and updates the pointer.
 inputs:
   path:
     description: 'Submodule path'
-    require: true
+    required: true
     default: '.'
   branch:
     description: 'Branch to track'
-    require: true
+    required: true
     default: 'main'
 
 runs:
@@ -19,6 +19,7 @@ runs:
         git checkout origin/${{ inputs.branch }}
         cd -
         git add ${{ inputs.path }}
+      shell: bash
     - run: |
         if ! git diff --cached --quiet; then
           git config user.name "ianhub-bot"
