@@ -48,7 +48,7 @@ jobs:
 
           echo "✅ Forwarded dispatch to $HUB_REPO"
 
-      - name: Handle special language → packages chaining
+      - name: Optional: Handle special language → packages chaining
         if: ${{ github.event.client_payload.type == 'language' }}
         run: |
           echo "🔄 Language repo updated; will later notify csk-packages after csk-languages update."
