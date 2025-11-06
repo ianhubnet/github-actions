@@ -7,9 +7,6 @@ inputs:
   pass:
     description: 'Shared secret to validate the caller (CSK_PASS)'
     required: true
-  hub_secret:
-    description: 'Internal CSK_PASS for validation (must be passed by caller from secrets)'
-    required: true
   type:
     description: 'Type of repository: project/app, module, plugin, theme, library, helper, service, language'
     required: true
@@ -22,7 +19,7 @@ runs:
     - shell: bash
       run: |
         # --- Validate shared secret ---
-        if [[ "${{ inputs.pass }}" != "${{ inputs.hub_secret }}" ]]; then
+        if [[ "${{ inputs.pass }}" != "${{ secrets.CSK_PASS }}" ]]; then
           echo "❌ Invalid CSK_PASS. Exiting."
           exit 1
         fi
