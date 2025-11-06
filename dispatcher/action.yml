@@ -1,0 +1,83 @@
+name: Notify CSK Hub
+description: Centralized dispatcher for all CSK updates (projects, packages, languages)
+inputs:
+  token:
+    description: 'GitHub token to dispatch events to hub repos (or GITHUB_TOKEN)'
+    required: true
+  pass:
+    description: 'Shared secret to validate the caller (CSK_PASS)'
+    required: true
+  type:
+    description: 'Type of repository: project/app, module, plugin, theme, library, helper, service, language'
+    required: true
+  name:
+    description: 'Canonical name of the repo/package (CSK_NAME)'
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - shell: bash
+      run: |
+        # --- Validate shared secret ---
+        if [[ "${{ inputs.pass }}" != "${{ secrets.CSK_PASS }}" ]]; then
+          echo "❌ Invalid CSK_PASS. Exiting."
+          exit 1
+        fi
+
+        # --- Determine target hub repo and submodule path ---
+        declare -A HUB_MAP
+        HUB_MAP[project]="ianhubnet/csk-projects"
+        HUB_MAP[app]="ianhubnet/csk-projects"
+        HUB_MAP[module]="ianhubnet/csk-packages"
+        HUB_MAP[plugin]="ianhubnet/csk-packages"
+        HUB_MAP[theme]="ianhubnet/csk-packages"
+        HUB_MAP[library]="ianhubnet/csk-packages"
+        HUB_MAP[helper]="ianhubnet/csk-packages"
+        HUB_MAP[service]="ianhubnet/csk-packages"
+        HUB_MAP[language]="ianhubnet/csk-languages"
+
+        declare -A SUB_PATH_MAP
+        SUB_PATH_MAP[project]="projects/${{ inputs.name }}"
+        SUB_PATH_MAP[app]="projects/${{ inputs.name }}"
+        SUB_PATH_MAP[module]="packages/modules/${{ inputs.name }}"
+        SUB_PATH_MAP[plugin]="packages/plugins/${{ inputs.name }}"
+        SUB_PATH_MAP[theme]="packages/themes/${{ inputs.name }}"
+        SUB_PATH_MAP[library]="packages/libraries/${{ inputs.name }}"
+        SUB_PATH_MAP[helper]="packages/helpers/${{ inputs.name }}"
+        SUB_PATH_MAP[service]="packages/services/${{ inputs.name }}"
+        SUB_PATH_MAP[language]="languages/${{ inputs.name }}"
+
+        TYPE="${{ inputs.type }}"
+        HUB_REPO="${HUB_MAP[$TYPE]}"
+        SUB_PATH="${SUB_PATH_MAP[$TYPE]}"
+
+        if [[ -z "$HUB_REPO" ]]; then
+          echo "❌ Unknown type '$TYPE'"
+          exit 1
+        fi
+
+        echo "🚀 Dispatching '${{ inputs.name }}' of type '$TYPE' to $HUB_REPO"
+
+        # --- Build payload ---
+        PAYLOAD=$(jq -n \
+          --arg name "${{ inputs.name }}" \
+          --arg type "$TYPE" \
+          --arg repo "$GITHUB_REPOSITORY" \
+          --arg subpath "$SUB_PATH" \
+          '{name: $name, type: $type, repo: $repo, subpath: $subpath}')
+
+        # --- Dispatch to primary hub repo ---
+        curl -s -X POST \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${{ inputs.token }}" \
+          "https://api.github.com/repos/$HUB_REPO/dispatches" \
+          -d "{\"event_type\":\"update-submodules\",\"client_payload\":$PAYLOAD}"
+
+        echo "✅ Dispatched to $HUB_REPO"
+
+        # --- Special case: language → packages workflow ---
+        if [[ "$TYPE" == "language" ]]; then
+          echo "🔄 Language workflow: will notify csk-packages after csk-languages updates"
+          # You can optionally dispatch back to central hub after csk-languages has processed
+          # Caller hub repo (csk-languages) will send same payload with type=language-packages
+        fi
